@@ -1,8 +1,26 @@
 <!DOCTYPE html>
 <html>
-  <body>
-    <div id='root'></div>
-    <div class='info'>
+<head>
+  <meta charset='UTF-8' />
+  <style>
+    * {
+      margin: 0;
+    }
+
+    .lifetime {
+      width: 500px;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <div id='canvasRoot'></div>
+    <progress class='lifetime' value='0' max='0' />
+  </div>
+  <div class='info'>
+    <pre class='top10'></pre>
+    <div class='generations'></div>
+    <div style='display: none'>
       <div>gen: <span class='gen'></span></div>
       <div>seed: <span class='seed'></span></div>
       <div>best: <span class='best'></span></div>
@@ -11,7 +29,8 @@
       <div>hidden nodes: <span class='hidden'></span></div>
       <div>output nodes: <span class='outputs'></span></div>
     </div>
-    <script src='https://cdn.jsdelivr.net/npm/mersennetwister@0.2.3/src/MersenneTwister.min.js'></script>
-    <script src='main.js'></script>
-  </body>
+  </div>
+  <script src='https://cdn.jsdelivr.net/npm/mersennetwister@0.2.3/src/MersenneTwister.min.js'></script>
+  <script type='module' src='main.js'></script>
+</body>
 </html>

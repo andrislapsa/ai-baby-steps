@@ -1,9 +1,19 @@
-const CAR_SIZE = 10
-const START_X = 250
-const START_Y = 250
-const TICK_LENGTH = 1
-const MAX_AGE = 100000 / TICK_LENGTH // ticks
-const MUTABILITy = 0.01
+import {
+  TICK_LENGTH,
+  MAX_AGE,
+  MUTABILITY,
+  FOOD_AMOUNT,
+  FOOD_SIZE,
+  APETITE,
+  CREATURE_WEIGHTS,
+  CREATURE_COUNT,
+} from './consts.js'
+import { Creature } from './Creature.js'
+import {
+  random,
+  createCanvasAndGetContext,
+  calcDistance,
+} from './utils.js'
 
 const genEl = document.querySelector('.gen')
 const bestEl = document.querySelector('.best')
@@ -12,138 +22,70 @@ const inputsEl = document.querySelector('.inputs')
 const weightsEl = document.querySelector('.weights')
 const hiddenEl = document.querySelector('.hidden')
 const outputsEl = document.querySelector('.outputs')
+const top10 = document.querySelector('.top10')
+const generationsLog = document.querySelector('.generations')
+const progressBar = document.querySelector('.lifetime')
 
-MersenneTwister = window.MersenneTwister || function() {
-  this.seed = () => null
-  this.random = () => Math.random()
-}
+progressBar.max = MAX_AGE
 
-const mt = new MersenneTwister()
-const seed = Math.round(Math.random() * 100000)
-seedEl.innerText = seed
-mt.seed(seed)
-function random() {
-  return mt.random()
-}
-
-function createCanvasAndGetContext() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 500
-  canvas.height = 500
-  canvas.style.border = '1px solid #ccc'
-  document.getElementById('root').appendChild(canvas)
-  return canvas.getContext('2d')
-}
-
-function sig(x) {
-  return 1 / (1 + Math.exp(-x))
-}
-
-function calcDistance(a, b) {
-  return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2))
-}
-
-class Car {
-  constructor({ x = START_X, y = START_Y, weights }) {
-    this.v = 3
-    this.x = Math.floor(random() * 500)
-    this.y = Math.floor(random() * 500)
-    this.theta = random() * 2 * Math.PI
-    this.weights = weights
-    this.foodEaten = 0
-  }
-
-  eat () {
-    this.foodEaten += 1
-  }
-
-  acceerate() {
-    this.v += 1
-  }
-
-  brake() {
-    this.v -= 1
-  }
-
-  steer(isRight) {
-    this.theta += (isRight ? 1 : -1) * (Math.PI / 36)
-  }
-
-  steerRight() {
-    this.steer(true)
-  }
-
-  steerLeft() {
-    this.steer(false)
-  }
-
-  updateParameters({ distanceToFood }) {
-    const inputs = [distanceToFood, this.theta / (2 * Math.PI), this.v]
-    const weights = this.weights
-    const z0 = sig(inputs.reduce((sum, value, i) => sum + value * weights.slice(0, 3)[i], 0))
-    const z1 = sig(inputs.reduce((sum, value, i) => sum + value * weights.slice(3, 6)[i], 0))
-    const out0 = sig([z0, z1].reduce((sum, value, i) => sum + value * weights.slice(6, 8)[i], 0))
-    const out1 = sig([z0, z1].reduce((sum, value, i) => sum + value * weights.slice(8, 10)[i], 0))
-
-    // inputsEl.innerText = inputs.join()
-    // weightsEl.innerText = weights.join()
-    // hiddenEl.innerText = [z0, z1].join()
-    // outputsEl.innerText = [out0, out1].join()
-
-    if (random() < out0) {
-      this.steerRight()
-    }
-    if (random() < out1) {
-      this.steerLeft()
-    }
-  }
-
-  tick() {
-    this.x = this.x + this.v * Math.cos(this.theta)
-    this.y = this.y + this.v * Math.sin(this.theta)
-  }
-
-  draw(ctx) {
-    ctx.arc(this.x, this.y, CAR_SIZE / 2, 0, 2 * Math.PI)
-    ctx.moveTo(this.x, this.y)
-    ctx.lineTo(this.x + CAR_SIZE * Math.cos(this.theta), this.y + CAR_SIZE * Math.sin(this.theta))
-  }
-}
-
-function tick({ ctx, cars, food, generateNewFood, resolve }) {
+function tick({ ctx, creatures, food, generateNewFood, resolve }) {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
   food.forEach(foodPiece => {
-    ctx.beginPath()
-    ctx.arc(foodPiece.x, foodPiece.y, 5, 0, 2 * Math.PI)
-    ctx.closePath()
-    ctx.fillStyle = 'red'
-    ctx.fill()
+    // ctx.beginPath()
+    // ctx.arc(foodPiece.x, foodPiece.y, FOOD_SIZE, 0, 2 * Math.PI)
+    // ctx.closePath()
+    // ctx.fillStyle = 'red'
+    // ctx.fill()
+
+    ctx.font = `${FOOD_SIZE * 2.2}px serif`;
+    ctx.fillText('🍎', foodPiece.x - FOOD_SIZE * 1.09, foodPiece.y + FOOD_SIZE * .7);
   })
-  cars.forEach(car => {
-    const closestFoodDistance = food.reduce((closest, current) => calcDistance(current, car) < closest ? calcDistance(current, car) : closest, Infinity)
-    if (closestFoodDistance <= 10) {
-      car.eat()
-      food.splice(food.findIndex(f => calcDistance(f, car) === closestFoodDistance), 1)
+  creatures.forEach(creature => {
+    const closestFoodDistance = food.reduce((closest, current) => calcDistance(current, creature) < closest ? calcDistance(current, creature) : closest, Infinity)
+    if (closestFoodDistance <= FOOD_SIZE) {
+      creature.eat()
+      food.splice(food.findIndex(f => calcDistance(f, creature) === closestFoodDistance), 1)
       generateNewFood()
-      if (car.foodEaten >= 5) {
-        resolve(cars)
+      if (creature.foodEaten >= APETITE) {
+        resolve(creatures)
       }
     }
-    const isBest = sort(cars)[0] === car
-    car.updateParameters({
-      distanceToFood: closestFoodDistance / ctx.canvas.width
+    const distanceToFood = closestFoodDistance / ctx.canvas.width;
+    creature.distanceToFood = distanceToFood
+    creature.updateParameters({
+      distanceToFood,
     })
-    car.tick()
+    creature.tick()
     ctx.beginPath()
-    car.draw(ctx)
+    creature.draw(ctx)
     ctx.closePath()
     ctx.stroke()
-    if (isBest) {
-      ctx.fillStyle = 'black'
-      ctx.fill()
-    }
   })
-  bestEl.innerHTML = sort(cars)[0].foodEaten
+  const sortedCreatures = sort(creatures);
+  // bestEl.innerHTML = sortedCreatures[0].foodEaten
+
+  const topPerformerRank = sortedCreatures.slice(0, 9)
+    .map(creature => creature.distanceToFood)
+    .join('\n')
+  top10.innerHTML = topPerformerRank
+}
+
+function average(data) {
+  return data.reduce((a, b) => a + b, 0) / data.length
+}
+
+function logGeneration(genNr, creatureDistances, creatureEatenFood) {
+  const logItem = document.createElement('pre')
+
+  // const worstPerformer = creatureDistances[creatureDistances.length - 1]
+  // const averagePerformance = average(creatureDistances)
+
+  const bestPerformer = creatureEatenFood[0]
+  const worstPerformer = creatureEatenFood[creatureEatenFood.length - 1]
+  const averagePerformance = average(creatureEatenFood)
+
+  logItem.innerHTML = `#${genNr} avg: ${averagePerformance.toFixed(5)} best: ${bestPerformer} worst: ${worstPerformer.toFixed(5)}`
+  generationsLog.appendChild(logItem)
 }
 
 function generateFood(ctx) {
@@ -153,87 +95,104 @@ function generateFood(ctx) {
   }
 }
 
-function live(cars, ctx) {
+function live(creatures, ctx) {
   let tickerId
-  let food = [...Array(5)].map(() => generateFood(ctx))
+  let food = [...Array(FOOD_AMOUNT)].map(() => generateFood(ctx))
   const generateNewFood = () => food.push(generateFood(ctx))
   return new Promise((resolve) => {
-    tick({ ctx, cars, food, generateNewFood, resolve })
+    tick({ ctx, creatures, food, generateNewFood, resolve })
     let ticks = 1
     tickerId = setInterval(() => {
-      tick({ ctx, cars, food, generateNewFood, resolve })
+      tick({ ctx, creatures, food, generateNewFood, resolve })
       ticks += 1
       if (ticks > MAX_AGE) {
-        resolve()
+        resolve(creatures)
       }
+      progressBar.value = ticks
     }, TICK_LENGTH)
-  }).then(cars => {
+  }).then(creatures => {
     clearInterval(tickerId)
-    return cars
+    return creatures
   })
 }
 
-function sort(cars) {
-  return cars.slice().sort((a, b) => b.foodEaten - a.foodEaten)
+function sort(creatures) {
+  return creatures.slice().sort((a, b) => b.foodEaten - a.foodEaten)
+  // return creatures.slice().sort((a, b) => b.distanceToFood - a.distanceToFood)
 }
 
-function killHalf(cars) {
+window.sort = sort
+
+function killHalf(creatures) {
+  // return creatures.slice(0, creatures.length / 2)
   let deathCount = 0
-  return cars.filter((car, i) => {
-    const probabilityOfDeath = (i + 1) / cars.length
+  return creatures.filter((creature, i) => {
+    const probabilityOfDeath = (i + 1) / creatures.length
     if (random() < probabilityOfDeath) {
       deathCount += 1
-      if (deathCount < cars.length / 2) {
+      if (deathCount < creatures.length / 2) {
         return false
       }
     }
     return true
-  }).slice(0, cars.length / 2)
+  }).slice(0, creatures.length / 2)
 }
 
-function mutate(cars) {
-  return cars.map(car => new Car({
-    weights: car.weights.map(w => w + MUTABILITy * random() - MUTABILITy / 2)
+function mutate(creatures) {
+  return creatures.map(creature => new Creature({
+    weights: creature.weights.map(w => w + MUTABILITY * random() - MUTABILITY / 2)
   }))
 }
 
 let genCount = 0
-function runGeneration(cars, ctx) {
+function runGeneration(creatures, ctx) {
+  window.currentCreatures = creatures
   console.log('New gen!')
   genCount += 1
   genEl.innerText = genCount
-  live(cars, ctx)
-    .then(cars => {
-      const sortedCars = sort(cars)
-      const best = killHalf(sortedCars)
-      const newCars = mutate(best).concat(mutate(best))
-      runGeneration(newCars, ctx)
+  live(creatures, ctx)
+    .then(creatures => {
+      const sortedCreatures = sort(creatures)
+      const creatureDistances = sortedCreatures.map(creature => creature.distanceToFood)
+      const creatureEatenFood = sortedCreatures.map(creature => creature.foodEaten)
+      logGeneration(genCount, creatureDistances, creatureEatenFood)
+      const best = killHalf(sortedCreatures)
+      const newCreatures = mutate(best).concat(mutate(best))
+      window.newCreatures = newCreatures
+      runGeneration(newCreatures, ctx)
+      // debugger
     })
     .catch((err) => {
       console.log('Gen failed', err);
-      // runGeneration(cars, ctx)
+      // runGeneration(creatures, ctx)
     })
 }
 
 const context = createCanvasAndGetContext()
-const cars = [...Array(100)].map(() => new Car({
-  weights: [...Array(10)].map(random),
-}))
-runGeneration(cars, context)
+
+
+const creatures = [...Array(CREATURE_COUNT)].map((item, key) => {
+  window.creature = new Creature({
+    weights: CREATURE_WEIGHTS[key],
+  });
+
+  return window.creature;
+})
+runGeneration(creatures, context)
 
 // window.addEventListener('keydown', ({ keyCode }) => {
 //   switch (keyCode) {
 //     case 39:
-//       car.steerRight()
+//       creature.steerRight()
 //       break
 //     case 37:
-//       car.steerLeft()
+//       creature.steerLeft()
 //       break
 //     case 38:
-//       car.acceerate()
+//       creature.acceerate()
 //       break
 //     case 40:
-//       car.brake()
+//       creature.brake()
 //       break
 //   }
 // })
