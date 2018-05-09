@@ -64,27 +64,28 @@ function tick({ ctx, creatures, food, generateNewFood, resolve }) {
   const sortedCreatures = sort(creatures);
   // bestEl.innerHTML = sortedCreatures[0].foodEaten
 
-  const topPerformerRank = sortedCreatures.slice(0, 9)
-    .map(creature => creature.distanceToFood)
-    .join('\n')
-  top10.innerHTML = topPerformerRank
+  // const topPerformerRank = sortedCreatures.slice(0, 9)
+  //   .map(creature => creature.distanceToFood)
+  //   .join('\n')
+  // top10.innerHTML = topPerformerRank
 }
 
 function average(data) {
   return data.reduce((a, b) => a + b, 0) / data.length
 }
 
-function logGeneration(genNr, creatureDistances, creatureEatenFood) {
+function logGeneration(simulationNr, genNr, creatureDistances, creatureEatenFood) {
   const logItem = document.createElement('pre')
 
   // const worstPerformer = creatureDistances[creatureDistances.length - 1]
   // const averagePerformance = average(creatureDistances)
 
   const bestPerformer = creatureEatenFood[0]
+  const top10AveragePerformance = average(creatureEatenFood.slice(0, 10))
   const worstPerformer = creatureEatenFood[creatureEatenFood.length - 1]
   const averagePerformance = average(creatureEatenFood)
 
-  logItem.innerHTML = `#${genNr} avg: ${averagePerformance.toFixed(5)} best: ${bestPerformer} worst: ${worstPerformer.toFixed(5)}`
+  logItem.innerHTML = `sim #${simulationNr} gen #${genNr} best: ${bestPerformer} top10 avg: ${top10AveragePerformance} avg: ${averagePerformance.toFixed(5)} worst: ${worstPerformer.toFixed(5)}`
   generationsLog.appendChild(logItem)
 }
 
@@ -144,41 +145,74 @@ function mutate(creatures) {
   }))
 }
 
-let genCount = 0
+
 function runGeneration(creatures, ctx) {
-  window.currentCreatures = creatures
-  console.log('New gen!')
-  genCount += 1
-  genEl.innerText = genCount
-  live(creatures, ctx)
-    .then(creatures => {
-      const sortedCreatures = sort(creatures)
-      const creatureDistances = sortedCreatures.map(creature => creature.distanceToFood)
-      const creatureEatenFood = sortedCreatures.map(creature => creature.foodEaten)
-      logGeneration(genCount, creatureDistances, creatureEatenFood)
-      const best = killHalf(sortedCreatures)
-      const newCreatures = mutate(best).concat(mutate(best))
-      window.newCreatures = newCreatures
-      runGeneration(newCreatures, ctx)
-      // debugger
-    })
-    .catch((err) => {
-      console.log('Gen failed', err);
-      // runGeneration(creatures, ctx)
-    })
+  // window.currentCreatures = creatures
+  // console.log('New gen!')
+  // genCount += 1
+  // genEl.innerText = genCount
+  return live(creatures, ctx);
 }
 
-const context = createCanvasAndGetContext()
-
+// const context = createCanvasAndGetContext()
 
 const creatures = [...Array(CREATURE_COUNT)].map((item, key) => {
   window.creature = new Creature({
     weights: CREATURE_WEIGHTS[key],
-  });
+  })
 
-  return window.creature;
+  return window.creature
 })
-runGeneration(creatures, context)
+
+function runSimulations(simulations) {
+  let genCount = 0
+  Promise.all(simulations.map(({ creatures, ctx }) => live(creatures, ctx)))
+    .then((allCreatures) => {
+      genCount++
+      const flattenedCreatures = allCreatures.reduce((acc, val) => acc.concat(val), [])
+      const sortedCreatures = sort(flattenedCreatures)
+      const best = killHalf(sortedCreatures)
+      const newCreatures = mutate(best).concat(mutate(best)).slice(0, CREATURE_COUNT)
+
+      const nextSimulations = allCreatures
+        .map((creatures, key) => {
+          // const sortedCreatures = sort(creatures)
+          const creatureDistances = sortedCreatures.map(creature => creature.distanceToFood)
+          const creatureEatenFood = sortedCreatures.map(creature => creature.foodEaten)
+          // const best = killHalf(sortedCreatures)
+          // const newCreatures = mutate(best).concat(mutate(best))
+
+          logGeneration(key, genCount, creatureDistances, creatureEatenFood)
+          return {
+            creatures: newCreatures,
+            ctx: simulations[key].ctx,
+          }
+        })
+
+      runSimulations(nextSimulations)
+      // console.log(allCreatures)
+      // window.newCreatures = newCreatures
+      // runGeneration(newCreatures, ctx)
+      // debugger
+    })
+    .catch((err) => {
+      console.log('Simulation failed', err);
+      // runGeneration(creatures, ctx)
+    })
+}
+
+const simulations = [
+  { creatures, ctx: createCanvasAndGetContext() },
+  // { creatures, ctx: createCanvasAndGetContext() },
+  // { creatures, ctx: createCanvasAndGetContext() },
+  // { creatures, ctx: createCanvasAndGetContext() },
+  // { creatures, ctx: createCanvasAndGetContext() },
+  // { creatures, ctx: createCanvasAndGetContext() },
+]
+
+runSimulations(simulations)
+// runGeneration(creatures, context)
+// runGeneration(creatures, context1)
 
 // window.addEventListener('keydown', ({ keyCode }) => {
 //   switch (keyCode) {
