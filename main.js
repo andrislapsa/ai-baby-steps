@@ -13,6 +13,9 @@ import {
   random,
   createCanvasAndGetContext,
   calcDistance,
+  getRandomFoodFace,
+  flatten,
+  shuffle,
 } from './utils.js'
 
 const genEl = document.querySelector('.gen')
@@ -28,7 +31,7 @@ const progressBar = document.querySelector('.lifetime')
 
 progressBar.max = MAX_AGE
 
-function tick({ ctx, creatures, food, generateNewFood, resolve }) {
+function tick({ ctx, creatures, food, generateNewFood }) {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
   food.forEach(foodPiece => {
     // ctx.beginPath()
@@ -38,7 +41,7 @@ function tick({ ctx, creatures, food, generateNewFood, resolve }) {
     // ctx.fill()
 
     ctx.font = `${FOOD_SIZE * 2.2}px serif`;
-    ctx.fillText('🍎', foodPiece.x - FOOD_SIZE * 1.09, foodPiece.y + FOOD_SIZE * .7);
+    ctx.fillText(foodPiece.face, foodPiece.x - FOOD_SIZE * 1.09, foodPiece.y + FOOD_SIZE * .7);
   })
   creatures.forEach(creature => {
     const closestFoodDistance = food.reduce((closest, current) => calcDistance(current, creature) < closest ? calcDistance(current, creature) : closest, Infinity)
@@ -47,7 +50,8 @@ function tick({ ctx, creatures, food, generateNewFood, resolve }) {
       food.splice(food.findIndex(f => calcDistance(f, creature) === closestFoodDistance), 1)
       generateNewFood()
       if (creature.foodEaten >= APETITE) {
-        resolve(creatures)
+        console.log('fed up', creature)
+        // resolve(creatures)
       }
     }
     const distanceToFood = closestFoodDistance / ctx.canvas.width;
@@ -61,7 +65,9 @@ function tick({ ctx, creatures, food, generateNewFood, resolve }) {
     ctx.closePath()
     ctx.stroke()
   })
-  const sortedCreatures = sort(creatures);
+
+  return creatures
+  // const sortedCreatures = sort(creatures);
   // bestEl.innerHTML = sortedCreatures[0].foodEaten
 
   // const topPerformerRank = sortedCreatures.slice(0, 9)
@@ -91,34 +97,45 @@ function logGeneration(simulationNr, genNr, creatureDistances, creatureEatenFood
 
 function generateFood(ctx) {
   return {
+    face: getRandomFoodFace(),
     x: random() * ctx.canvas.width,
     y: random() * ctx.canvas.height,
   }
 }
 
+function planckLength (fn) {
+  setInterval(fn, TICK_LENGTH)
+}
+
 function live(creatures, ctx) {
-  let tickerId
+  // let tickerId
   let food = [...Array(FOOD_AMOUNT)].map(() => generateFood(ctx))
   const generateNewFood = () => food.push(generateFood(ctx))
-  return new Promise((resolve) => {
-    tick({ ctx, creatures, food, generateNewFood, resolve })
-    let ticks = 1
-    tickerId = setInterval(() => {
-      tick({ ctx, creatures, food, generateNewFood, resolve })
-      ticks += 1
-      if (ticks > MAX_AGE) {
-        resolve(creatures)
-      }
-      progressBar.value = ticks
-    }, TICK_LENGTH)
-  }).then(creatures => {
-    clearInterval(tickerId)
-    return creatures
-  })
+
+  return () => tick({ ctx, creatures, food, generateNewFood })
+  // return new Promise((resolve) => {
+  //
+  //   tick({ ctx, creatures, food, generateNewFood, resolve })
+  //   let ticks = 1
+  //   tickerId = planckLength(() => {
+  //     tick({ ctx, creatures, food, generateNewFood, resolve })
+  //     ticks += 1
+  //     if (ticks > MAX_AGE) {
+  //       resolve(creatures)
+  //     }
+  //     progressBar.value = ticks
+  //   })
+  // }).then(creatures => {
+  //   clearInterval(tickerId)
+  //   return creatures
+  // })
 }
 
 function sort(creatures) {
-  return creatures.slice().sort((a, b) => b.foodEaten - a.foodEaten)
+  return creatures.slice().sort((a, b) =>
+    a.ate === b.ate ? (a.distance - b.distance) : (b.ate - a.ate)
+  )
+  // return creatures.slice().sort((a, b) => b.foodEaten - a.foodEaten)
   // return creatures.slice().sort((a, b) => b.distanceToFood - a.distanceToFood)
 }
 
@@ -156,58 +173,126 @@ function runGeneration(creatures, ctx) {
 
 // const context = createCanvasAndGetContext()
 
-const creatures = [...Array(CREATURE_COUNT)].map((item, key) => {
-  window.creature = new Creature({
-    weights: CREATURE_WEIGHTS[key],
-  })
+const generateCreatures = () =>
+  [...Array(CREATURE_COUNT)].map((item, key) =>
+    new Creature({
+      weights: CREATURE_WEIGHTS[key],
+    })
+  )
 
-  return window.creature
-})
+const creatures = generateCreatures()
 
 function runSimulations(simulations) {
   let genCount = 0
-  Promise.all(simulations.map(({ creatures, ctx }) => live(creatures, ctx)))
-    .then((allCreatures) => {
-      genCount++
-      const flattenedCreatures = allCreatures.reduce((acc, val) => acc.concat(val), [])
-      const sortedCreatures = sort(flattenedCreatures)
+
+  // return new Promise((resolve) => {
+  //
+  //   tick({ ctx, creatures, food, generateNewFood, resolve })
+  //   let ticks = 1
+  //   tickerId = planckLength(() => {
+  //     tick({ ctx, creatures, food, generateNewFood, resolve })
+  //     ticks += 1
+  //     if (ticks > MAX_AGE) {
+  //       resolve(creatures)
+  //     }
+  //     progressBar.value = ticks
+  //   })
+  // }).then(creatures => {
+  //   clearInterval(tickerId)
+  //   return creatures
+  // })
+  const simulationTickers = simulations
+    .map(({ creatures, ctx }) => live(creatures, ctx))
+
+  const simulationsCount = simulations.length
+
+  let ticks = 1
+  const tickerId = setInterval(() => {
+    ticks++
+    progressBar.value = ticks
+
+    const allCreatures = flatten(simulationTickers.map(ticker => ticker()))
+
+    if (ticks > MAX_AGE) {
+      clearInterval(tickerId)
+
+      const sortedCreatures = sort(allCreatures)
       const best = killHalf(sortedCreatures)
-      const newCreatures = mutate(best).concat(mutate(best)).slice(0, CREATURE_COUNT)
+      const newCreatures = shuffle(mutate(best).concat(mutate(best)).slice(0, CREATURE_COUNT))
+        .reduce((acc,item,i) => {
+          acc[i % acc.length].push(item)
+          return acc
+        }, [...Array(simulationsCount)].map(() => []))
 
-      const nextSimulations = allCreatures
-        .map((creatures, key) => {
-          // const sortedCreatures = sort(creatures)
-          const creatureDistances = sortedCreatures.map(creature => creature.distanceToFood)
-          const creatureEatenFood = sortedCreatures.map(creature => creature.foodEaten)
-          // const best = killHalf(sortedCreatures)
-          // const newCreatures = mutate(best).concat(mutate(best))
+      const newSimulations = simulations.map(({ _, ctx }, key) => ({
+        creatures: newCreatures[key],
+        ctx,
+      }))
 
-          logGeneration(key, genCount, creatureDistances, creatureEatenFood)
-          return {
-            creatures: newCreatures,
-            ctx: simulations[key].ctx,
-          }
-        })
+      console.log('max age reached') //, allCreatures, flatten(allCreatures))
+      runSimulations(newSimulations)
 
-      runSimulations(nextSimulations)
-      // console.log(allCreatures)
-      // window.newCreatures = newCreatures
-      // runGeneration(newCreatures, ctx)
-      // debugger
-    })
-    .catch((err) => {
-      console.log('Simulation failed', err);
-      // runGeneration(creatures, ctx)
-    })
+      // const newSimulations = simulations.map()
+    }
+  }, TICK_LENGTH)
+
+  // Promise.all(simulations.map(({ creatures, ctx }) => live(creatures, ctx)))
+  //   .then((allCreatures) => {
+  //     genCount++
+  //     const flattenedCreatures = allCreatures.reduce((acc, val) => acc.concat(val), [])
+  //     const sortedCreatures = sort(flattenedCreatures)
+  //     const best = killHalf(sortedCreatures)
+  //     const newCreatures = mutate(best).concat(mutate(best)).slice(0, CREATURE_COUNT)
+  //
+  //     const nextSimulations = allCreatures
+  //       .map((creatures, key) => {
+  //         // const sortedCreatures = sort(creatures)
+  //         const creatureDistances = sortedCreatures.map(creature => creature.distanceToFood)
+  //         const creatureEatenFood = sortedCreatures.map(creature => creature.foodEaten)
+  //         // const best = killHalf(sortedCreatures)
+  //         // const newCreatures = mutate(best).concat(mutate(best))
+  //
+  //         logGeneration(key, genCount, creatureDistances, creatureEatenFood)
+  //         return {
+  //           creatures: newCreatures,
+  //           ctx: simulations[key].ctx,
+  //         }
+  //       })
+  //
+  //     runSimulations(nextSimulations)
+  //     // console.log(allCreatures)
+  //     // window.newCreatures = newCreatures
+  //     // runGeneration(newCreatures, ctx)
+  //     // debugger
+  //   })
+  //   .catch((err) => {
+  //     console.log('Simulation failed', err);
+  //     // runGeneration(creatures, ctx)
+  //   })
 }
 
 const simulations = [
-  { creatures, ctx: createCanvasAndGetContext() },
-  // { creatures, ctx: createCanvasAndGetContext() },
-  // { creatures, ctx: createCanvasAndGetContext() },
-  // { creatures, ctx: createCanvasAndGetContext() },
-  // { creatures, ctx: createCanvasAndGetContext() },
-  // { creatures, ctx: createCanvasAndGetContext() },
+  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
+  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
 ]
 
 runSimulations(simulations)

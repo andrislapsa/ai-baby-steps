@@ -1,5 +1,6 @@
 import {
   CREATURE_FACES,
+  FOOD_FACES,
 } from './consts.js'
 
 MersenneTwister = window.MersenneTwister || function() {
@@ -10,9 +11,41 @@ MersenneTwister = window.MersenneTwister || function() {
 const mt = new MersenneTwister()
 const seed = Math.round(Math.random() * 100000)
 
+export const flatten = (items) =>
+  items.reduce((acc, val) => acc.concat(val), [])
+
+export const shuffle = (items) => {
+  let counter = items.length;
+
+  // While there are elements in the items
+  while (counter > 0) {
+    // Pick a random index
+    let index = Math.floor(Math.random() * counter);
+
+    // Decrease counter by 1
+    counter--;
+
+    // And swap the last element with it
+    let temp = items[counter];
+    items[counter] = items[index];
+    items[index] = temp;
+  }
+
+  return items;
+}
+
+export const emojisToArray = (EMOJIS) =>
+  EMOJIS.split(/([\uD800-\uDBFF][\uDC00-\uDFFF])/)
+    .filter(Boolean)
+
+export const getRandomEmoji = (EMOJIS) =>
+  EMOJIS[Math.floor(Math.random() * EMOJIS.length)]
 
 export const getRandomCreatureFace = () =>
-  CREATURE_FACES[Math.floor(Math.random() * CREATURE_FACES.length)]
+  getRandomEmoji(CREATURE_FACES)
+
+export const getRandomFoodFace = () =>
+  getRandomEmoji(FOOD_FACES)
 
 // seedEl.innerText = seed
 mt.seed(seed)
