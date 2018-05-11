@@ -17,6 +17,7 @@ import {
   flatten,
   shuffle,
 } from './utils.js'
+import graphGeneration from './graphGeneration.js'
 
 const genEl = document.querySelector('.gen')
 const bestEl = document.querySelector('.best')
@@ -93,6 +94,8 @@ function logGeneration(genNr, creatureDistances, creatureEatenFood) {
 
   logItem.innerHTML = `gen #${genNr} | best: ${bestPerformer} | top10 avg: ${top10AveragePerformance.toFixed(3)} | avg: ${averagePerformance.toFixed(3)} | worst: ${worstPerformer.toFixed(3)}`
   generationsLog.appendChild(logItem)
+
+  graphGeneration(genNr, { bestPerformer, top10AveragePerformance, averagePerformance, worstPerformer })
 }
 
 function generateFood(ctx) {
