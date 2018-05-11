@@ -11,11 +11,10 @@ export const SERIALIZED_DATA = `
 
 export const GENERATED_CREATURE_COUNT = 5
 export const USE_SERIALIZED = false
-
+export const FRAME_LENGTH = 1000 / 60
 export const CREATURE_SIZE = 10
 export const START_X = 5
 export const START_Y = 5
-export const TICK_LENGTH = 1
 export const MAX_AGE = 2000 / TICK_LENGTH // ticks
 export const MUTABILITY = .1
 export const STREERING_AMPLITUDE = .2

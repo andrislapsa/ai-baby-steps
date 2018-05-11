@@ -1,5 +1,4 @@
 import {
-  TICK_LENGTH,
   MAX_AGE,
   MUTABILITY,
   FOOD_AMOUNT,
@@ -19,6 +18,7 @@ import {
   shuffle,
 } from './utils.js'
 import graphGeneration from './graphGeneration.js'
+import worldTick from './worldTick.js'
 
 const random = createSeededRandom()
 
@@ -108,10 +108,6 @@ function generateFood(ctx, rnd) {
     x: rnd() * ctx.canvas.width,
     y: rnd() * ctx.canvas.height,
   }
-}
-
-function planckLength (fn) {
-  setInterval(fn, TICK_LENGTH)
 }
 
 function live(creatures, ctx, seed) {
@@ -223,14 +219,14 @@ function runSimulations(simulations) {
   const simulationsCount = simulations.length
 
   let ticks = 1
-  const tickerId = setInterval(() => {
+  worldTick(stop => {
     ticks++
     progressBar.value = ticks
 
     const allCreatures = flatten(simulationTickers.map(ticker => ticker()))
 
     if (ticks > MAX_AGE) {
-      clearInterval(tickerId)
+      stop()
 
       const sortedCreatures = sort(allCreatures)
       const creatureDistances = sortedCreatures.map(creature => creature.distanceToFood)
@@ -251,7 +247,7 @@ function runSimulations(simulations) {
 
       runSimulations(newSimulations)
     }
-  }, TICK_LENGTH)
+  })
 }
 
 const simulations = [...Array(32)]

@@ -18,9 +18,16 @@
     pre {
       font-size: 38px;
     }
+
+    input {
+      width: 500px;
+    }
   </style>
 </head>
 <body>
+  <div>
+    world speed: <input type='range' name='speed' min='1' max='1000' value='100' step='any' data- /> <span class='speed'></span> ticks per second
+  </div>
   <div>
     <div id='canvasRoot'></div>
     <progress class='lifetime' value='0' max='0' />
