@@ -10,7 +10,8 @@ import {
 } from './consts.js'
 import { Creature } from './Creature.js'
 import {
-  random,
+  createSeededRandom,
+  createRandomSeed,
   createCanvasAndGetContext,
   calcDistance,
   getRandomFoodFace,
@@ -19,9 +20,10 @@ import {
 } from './utils.js'
 import graphGeneration from './graphGeneration.js'
 
+const random = createSeededRandom()
+
 const genEl = document.querySelector('.gen')
 const bestEl = document.querySelector('.best')
-const seedEl = document.querySelector('.seed')
 const inputsEl = document.querySelector('.inputs')
 const weightsEl = document.querySelector('.weights')
 const hiddenEl = document.querySelector('.hidden')
@@ -92,17 +94,19 @@ function logGeneration(genNr, creatureDistances, creatureEatenFood) {
   const worstPerformer = creatureEatenFood[creatureEatenFood.length - 1]
   const averagePerformance = average(creatureEatenFood)
 
+  console.log('gen log', genNr, { creatureDistances, creatureEatenFood })
+
   logItem.innerHTML = `gen #${genNr} | best: ${bestPerformer} | top10 avg: ${top10AveragePerformance.toFixed(3)} | avg: ${averagePerformance.toFixed(3)} | worst: ${worstPerformer.toFixed(3)}`
   generationsLog.appendChild(logItem)
 
   graphGeneration(genNr, { bestPerformer, top10AveragePerformance, averagePerformance, worstPerformer })
 }
 
-function generateFood(ctx) {
+function generateFood(ctx, rnd) {
   return {
     face: getRandomFoodFace(),
-    x: random() * ctx.canvas.width,
-    y: random() * ctx.canvas.height,
+    x: rnd() * ctx.canvas.width,
+    y: rnd() * ctx.canvas.height,
   }
 }
 
@@ -110,10 +114,12 @@ function planckLength (fn) {
   setInterval(fn, TICK_LENGTH)
 }
 
-function live(creatures, ctx) {
+function live(creatures, ctx, seed) {
   // let tickerId
-  let food = [...Array(FOOD_AMOUNT)].map(() => generateFood(ctx))
-  const generateNewFood = () => food.push(generateFood(ctx))
+  console.log(1, seed)
+  const rnd = createSeededRandom(seed)
+  let food = [...Array(FOOD_AMOUNT)].map(() => generateFood(ctx, rnd))
+  const generateNewFood = () => food.push(generateFood(ctx, rnd))
 
   return () => tick({ ctx, creatures, food, generateNewFood })
   // return new Promise((resolve) => {
@@ -165,6 +171,12 @@ function mutate(creatures) {
   }))
 }
 
+function cloneCreatures(creatures) {
+  return creatures.map(creature => new Creature({
+    weights: creature.weights,
+  }))
+}
+
 
 function runGeneration(creatures, ctx) {
   // window.currentCreatures = creatures
@@ -186,10 +198,9 @@ const generateCreatures = () =>
 const creatures = generateCreatures()
 
 let genCount = 0
+const seed = createRandomSeed()
 function runSimulations(simulations) {
-  console.log('hmm', genCount)
   genCount++
-  console.log('how come?', genCount)
   // return new Promise((resolve) => {
   //
   //   tick({ ctx, creatures, food, generateNewFood, resolve })
@@ -207,7 +218,7 @@ function runSimulations(simulations) {
   //   return creatures
   // })
   const simulationTickers = simulations
-    .map(({ creatures, ctx }) => live(creatures, ctx))
+    .map(({ creatures, ctx }) => live(creatures, ctx, seed))
 
   const simulationsCount = simulations.length
 
@@ -226,13 +237,13 @@ function runSimulations(simulations) {
       const creatureEatenFood = sortedCreatures.map(creature => creature.foodEaten)
       logGeneration(genCount, creatureDistances, creatureEatenFood)
       const best = killHalf(sortedCreatures)
-      const newCreatures = shuffle(mutate(best).concat(mutate(best)))
+      const newCreatures = shuffle(mutate(best).concat(cloneCreatures(best)))
         .reduce((acc,item,i) => {
           acc[i % acc.length].push(item)
           return acc
         }, [...Array(simulationsCount)].map(() => []))
 
-      console.log('max age reached', allCreatures, newCreatures) //, allCreatures, flatten(allCreatures))
+      // console.log('max age reached', allCreatures, newCreatures) //, allCreatures, flatten(allCreatures))
       const newSimulations = simulations.map(({ _, ctx }, key) => ({
         creatures: newCreatures[key],
         ctx,
@@ -243,7 +254,7 @@ function runSimulations(simulations) {
   }, TICK_LENGTH)
 }
 
-const simulations = [...Array(8)]
+const simulations = [...Array(32)]
   .map(() => ({ creatures: generateCreatures(), ctx: createCanvasAndGetContext() }))
 
 runSimulations(simulations)

@@ -8,8 +8,17 @@ MersenneTwister = window.MersenneTwister || function() {
   this.random = () => Math.random()
 }
 
-const mt = new MersenneTwister()
-const seed = Math.round(Math.random() * 100000)
+export function createSeededRandom (seed) {
+  const seededMersenneTwister = new MersenneTwister()
+  seededMersenneTwister.seed(seed || createRandomSeed())
+  return function random() {
+    return seededMersenneTwister.random()
+  }
+}
+
+export function createRandomSeed () {
+  return Math.round(Math.random() * 100000)
+}
 
 export const flatten = (items) =>
   items.reduce((acc, val) => acc.concat(val), [])
@@ -46,12 +55,6 @@ export const getRandomCreatureFace = () =>
 
 export const getRandomFoodFace = () =>
   getRandomEmoji(FOOD_FACES)
-
-// seedEl.innerText = seed
-mt.seed(seed)
-export function random() {
-  return mt.random()
-}
 
 export function createCanvasAndGetContext() {
   const canvas = document.createElement('canvas')
