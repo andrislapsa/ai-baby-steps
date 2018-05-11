@@ -80,7 +80,7 @@ function average(data) {
   return data.reduce((a, b) => a + b, 0) / data.length
 }
 
-function logGeneration(simulationNr, genNr, creatureDistances, creatureEatenFood) {
+function logGeneration(genNr, creatureDistances, creatureEatenFood) {
   const logItem = document.createElement('pre')
 
   // const worstPerformer = creatureDistances[creatureDistances.length - 1]
@@ -91,7 +91,7 @@ function logGeneration(simulationNr, genNr, creatureDistances, creatureEatenFood
   const worstPerformer = creatureEatenFood[creatureEatenFood.length - 1]
   const averagePerformance = average(creatureEatenFood)
 
-  logItem.innerHTML = `sim #${simulationNr} gen #${genNr} best: ${bestPerformer} top10 avg: ${top10AveragePerformance} avg: ${averagePerformance.toFixed(5)} worst: ${worstPerformer.toFixed(5)}`
+  logItem.innerHTML = `gen #${genNr} | best: ${bestPerformer} | top10 avg: ${top10AveragePerformance.toFixed(3)} | avg: ${averagePerformance.toFixed(3)} | worst: ${worstPerformer.toFixed(3)}`
   generationsLog.appendChild(logItem)
 }
 
@@ -133,7 +133,7 @@ function live(creatures, ctx) {
 
 function sort(creatures) {
   return creatures.slice().sort((a, b) =>
-    a.ate === b.ate ? (a.distance - b.distance) : (b.ate - a.ate)
+    a.foodEaten === b.foodEaten ? (a.distanceToFood - b.distanceToFood) : (b.foodEaten - a.foodEaten)
   )
   // return creatures.slice().sort((a, b) => b.foodEaten - a.foodEaten)
   // return creatures.slice().sort((a, b) => b.distanceToFood - a.distanceToFood)
@@ -182,9 +182,11 @@ const generateCreatures = () =>
 
 const creatures = generateCreatures()
 
+let genCount = 0
 function runSimulations(simulations) {
-  let genCount = 0
-
+  console.log('hmm', genCount)
+  genCount++
+  console.log('how come?', genCount)
   // return new Promise((resolve) => {
   //
   //   tick({ ctx, creatures, food, generateNewFood, resolve })
@@ -217,83 +219,29 @@ function runSimulations(simulations) {
       clearInterval(tickerId)
 
       const sortedCreatures = sort(allCreatures)
+      const creatureDistances = sortedCreatures.map(creature => creature.distanceToFood)
+      const creatureEatenFood = sortedCreatures.map(creature => creature.foodEaten)
+      logGeneration(genCount, creatureDistances, creatureEatenFood)
       const best = killHalf(sortedCreatures)
-      const newCreatures = shuffle(mutate(best).concat(mutate(best)).slice(0, CREATURE_COUNT))
+      const newCreatures = shuffle(mutate(best).concat(mutate(best)))
         .reduce((acc,item,i) => {
           acc[i % acc.length].push(item)
           return acc
         }, [...Array(simulationsCount)].map(() => []))
 
+      console.log('max age reached', allCreatures, newCreatures) //, allCreatures, flatten(allCreatures))
       const newSimulations = simulations.map(({ _, ctx }, key) => ({
         creatures: newCreatures[key],
         ctx,
       }))
 
-      console.log('max age reached') //, allCreatures, flatten(allCreatures))
       runSimulations(newSimulations)
-
-      // const newSimulations = simulations.map()
     }
   }, TICK_LENGTH)
-
-  // Promise.all(simulations.map(({ creatures, ctx }) => live(creatures, ctx)))
-  //   .then((allCreatures) => {
-  //     genCount++
-  //     const flattenedCreatures = allCreatures.reduce((acc, val) => acc.concat(val), [])
-  //     const sortedCreatures = sort(flattenedCreatures)
-  //     const best = killHalf(sortedCreatures)
-  //     const newCreatures = mutate(best).concat(mutate(best)).slice(0, CREATURE_COUNT)
-  //
-  //     const nextSimulations = allCreatures
-  //       .map((creatures, key) => {
-  //         // const sortedCreatures = sort(creatures)
-  //         const creatureDistances = sortedCreatures.map(creature => creature.distanceToFood)
-  //         const creatureEatenFood = sortedCreatures.map(creature => creature.foodEaten)
-  //         // const best = killHalf(sortedCreatures)
-  //         // const newCreatures = mutate(best).concat(mutate(best))
-  //
-  //         logGeneration(key, genCount, creatureDistances, creatureEatenFood)
-  //         return {
-  //           creatures: newCreatures,
-  //           ctx: simulations[key].ctx,
-  //         }
-  //       })
-  //
-  //     runSimulations(nextSimulations)
-  //     // console.log(allCreatures)
-  //     // window.newCreatures = newCreatures
-  //     // runGeneration(newCreatures, ctx)
-  //     // debugger
-  //   })
-  //   .catch((err) => {
-  //     console.log('Simulation failed', err);
-  //     // runGeneration(creatures, ctx)
-  //   })
 }
 
-const simulations = [
-  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-  // { creatures: generateCreatures(), ctx: createCanvasAndGetContext() },
-]
+const simulations = [...Array(8)]
+  .map(() => ({ creatures: generateCreatures(), ctx: createCanvasAndGetContext() }))
 
 runSimulations(simulations)
 // runGeneration(creatures, context)
