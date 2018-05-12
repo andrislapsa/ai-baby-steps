@@ -1,6 +1,8 @@
 import {
   CREATURE_FACES,
   FOOD_FACES,
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
 } from './consts.js'
 
 MersenneTwister = window.MersenneTwister || function() {
@@ -58,8 +60,9 @@ export const getRandomFoodFace = () =>
 
 export function createCanvasAndGetContext() {
   const canvas = document.createElement('canvas')
-  canvas.width = 500
-  canvas.height = 500
+  canvas.className = 'universe'
+  canvas.width = CANVAS_WIDTH
+  canvas.height = CANVAS_HEIGHT
   canvas.style.border = '1px solid #ccc'
   document.getElementById('canvasRoot').appendChild(canvas)
   return canvas.getContext('2d')

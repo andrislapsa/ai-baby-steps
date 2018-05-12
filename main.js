@@ -31,21 +31,24 @@ const outputsEl = document.querySelector('.outputs')
 const top10 = document.querySelector('.top10')
 const generationsLog = document.querySelector('.generations')
 const progressBar = document.querySelector('.lifetime')
+const drawToggleInput = document.querySelector('[name="drawEnabled"]')
 
 progressBar.max = MAX_AGE
+window.DRAW = true
+
+drawToggleInput.addEventListener('change', elem => {
+  window.DRAW = elem.target.checked
+})
 
 function tick({ ctx, creatures, food, generateNewFood }) {
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-  food.forEach(foodPiece => {
-    // ctx.beginPath()
-    // ctx.arc(foodPiece.x, foodPiece.y, FOOD_SIZE, 0, 2 * Math.PI)
-    // ctx.closePath()
-    // ctx.fillStyle = 'red'
-    // ctx.fill()
+  if (DRAW) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+    food.forEach(foodPiece => {
+      ctx.font = `${FOOD_SIZE * 2.2}px serif`;
+      ctx.fillText(foodPiece.face, foodPiece.x - FOOD_SIZE * 1.09, foodPiece.y + FOOD_SIZE * .7);
+    })
+  }
 
-    ctx.font = `${FOOD_SIZE * 2.2}px serif`;
-    ctx.fillText(foodPiece.face, foodPiece.x - FOOD_SIZE * 1.09, foodPiece.y + FOOD_SIZE * .7);
-  })
   creatures.forEach(creature => {
     const closestFoodDistance = food.reduce((closest, current) => calcDistance(current, creature) < closest ? calcDistance(current, creature) : closest, Infinity)
     if (closestFoodDistance <= FOOD_SIZE) {
@@ -63,10 +66,13 @@ function tick({ ctx, creatures, food, generateNewFood }) {
       distanceToFood,
     })
     creature.tick()
-    ctx.beginPath()
-    creature.draw(ctx)
-    ctx.closePath()
-    ctx.stroke()
+
+    if (DRAW) {
+      ctx.beginPath()
+      creature.draw(ctx)
+      ctx.closePath()
+      ctx.stroke()
+    }
   })
 
   return creatures
@@ -147,18 +153,18 @@ function sort(creatures) {
 window.sort = sort
 
 function killHalf(creatures) {
-  // return creatures.slice(0, creatures.length / 2)
-  let deathCount = 0
-  return creatures.filter((creature, i) => {
-    const probabilityOfDeath = (i + 1) / creatures.length
-    if (random() < probabilityOfDeath) {
-      deathCount += 1
-      if (deathCount < creatures.length / 2) {
-        return false
-      }
-    }
-    return true
-  }).slice(0, creatures.length / 2)
+  return creatures.slice(0, creatures.length / 2)
+  // let deathCount = 0
+  // return creatures.filter((creature, i) => {
+  //   const probabilityOfDeath = (i + 1) / creatures.length
+  //   if (random() < probabilityOfDeath) {
+  //     deathCount += 1
+  //     if (deathCount < creatures.length / 2) {
+  //       return false
+  //     }
+  //   }
+  //   return true
+  // }).slice(0, creatures.length / 2)
 }
 
 function mutate(creatures) {
@@ -250,7 +256,7 @@ function runSimulations(simulations) {
   })
 }
 
-const simulations = [...Array(32)]
+const simulations = [...Array(64)]
   .map(() => ({ creatures: generateCreatures(), ctx: createCanvasAndGetContext() }))
 
 runSimulations(simulations)

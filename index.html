@@ -3,7 +3,9 @@
 <head>
   <meta charset='UTF-8' />
   <style>
-    * {
+    html,
+    body {
+      font-family: "Helvetica Neue";
       margin: 0;
     }
 
@@ -11,25 +13,40 @@
       width: 500px;
     }
 
-    canvas {
-      float: left;
-    }
-
     pre {
       font-size: 38px;
     }
 
-    input {
+    input[name="speed"] {
       width: 500px;
+    }
+
+    .generations {
+      display: none;
+      clear: both;
+    }
+
+    #canvasRoot {
+      transform: scale(0.25);
+      width: 400%;
+      margin-left: -150%;
+    }
+
+    .universe {
+      float: left;
     }
   </style>
 </head>
 <body>
   <div>
     world speed: <input type='range' name='speed' min='1' max='1000' value='100' step='any' data- /> <span class='speed'></span> ticks per second
+    <div>
+      <label>
+        <input type='checkbox' name='drawEnabled' checked /> drawing enabled
+      </label>
+    </div>
   </div>
   <div>
-    <div id='canvasRoot'></div>
     <progress class='lifetime' value='0' max='0' />
   </div>
   <div class='info'>
@@ -46,6 +63,7 @@
       <div>output nodes: <span class='outputs'></span></div>
     </div>
   </div>
+  <div id='canvasRoot'></div>
   <script src='https://cdn.jsdelivr.net/npm/mersennetwister@0.2.3/src/MersenneTwister.min.js'></script>
   <script src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js'></script>
   <script type='module' src='main.js'></script>
